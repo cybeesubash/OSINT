@@ -1,0 +1,25 @@
+# OSINT Shield — Python dependencies
+# Install: py -3 -m pip install -r requirements.txt
+
+# Web backend
+flask>=3.0.0
+flask-cors>=4.0.0
+werkzeug>=3.0.0
+gunicorn>=21.2.0
+
+
+# Config & HTTP
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Computer vision & image processing
+opencv-python>=4.9.0
+numpy>=1.26.0
+pillow>=10.0.0
+
+# PDF report generation
+reportlab>=4.0.0
+
+# OSINT CLI tools (used by Holehe / H8mail modules)
+holehe>=1.61
+h8mail>=2.5.6

@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSINT Shield — Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #07090f;
+      --bg2: #0c1018;
+      --sidebar: #0a0d14;
+      --card: #111620;
+      --card-hover: #151b28;
+      --elevated: #1a2130;
+      --border: rgba(255,255,255,0.07);
+      --border-strong: rgba(255,255,255,0.12);
+      --cyan: #3b82f6;
+      --cyan-dim: rgba(59,130,246,0.12);
+      --green: #10b981;
+      --red: #ef4444;
+      --purple: #8b5cf6;
+      --amber: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --light: #cbd5e1;
+      --sidebar-w: 260px;
+      --topbar-h: 64px;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ANIMATED BACKGROUND */
+    .bg-effects { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: .45;
+      animation: orbFloat 18s ease-in-out infinite;
+    }
+    .orb-1 { width: 520px; height: 520px; background: #1d4ed8; top: -180px; left: -120px; animation-duration: 22s; }
+    .orb-2 { width: 420px; height: 420px; background: #6366f1; bottom: -140px; right: -80px; animation-delay: -6s; animation-duration: 26s; }
+    .orb-3 { width: 300px; height: 300px; background: #0ea5e9; top: 40%; left: 55%; animation-delay: -12s; opacity: .25; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(40px, -30px) scale(1.08); }
+      66% { transform: translate(-25px, 35px) scale(0.95); }
+    }
+    .scanline {
+      position: absolute; inset: 0;
+      background: linear-gradient(transparent 50%, rgba(59,130,246,0.02) 50%);
+      background-size: 100% 4px;
+      animation: scanMove 8s linear infinite;
+      opacity: .5;
+    }
+    @keyframes scanMove { from { background-position: 0 0; } to { background-position: 0 100vh; } }
+
+    @keyframes pageSlideIn {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(4px); }
+      to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+    @keyframes titleFade {
+      from { opacity: 0; transform: translateX(-12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes statPop {
+      from { opacity: 0; transform: translateY(20px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+      50% { box-shadow: 0 4px 28px rgba(59,130,246,0.6); }
+    }
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    @keyframes borderGlow {
+      0%, 100% { border-color: rgba(59,130,246,0.2); }
+      50% { border-color: rgba(59,130,246,0.55); }
+    }
+    @keyframes progressIndeterminate {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(250%); }
+    }
+    @keyframes animIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes barGrow { from { width: 0; } }
+    .anim-in { animation: animIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .anim-in-fast { animation: animIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { color: #60a5fa; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    .app { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform .3s ease;
+    }
+    .sidebar-brand {
+      padding: 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+      animation: glowPulse 3s ease-in-out infinite;
+    }
+    .brand-icon svg { width: 20px; height: 20px; color: #fff; }
+    .brand-text h1 { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand-text p { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 10px; }
+    .nav-group { margin-bottom: 20px; }
+    .nav-group-label {
+      font-size: .65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); padding: 0 10px 8px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 10px 12px;
+      background: transparent; border: none; border-radius: 8px;
+      color: var(--muted); font-size: .84rem; font-weight: 500;
+      cursor: pointer; transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
+      text-align: left; font-family: inherit;
+      position: relative; overflow: hidden;
+    }
+    .nav-item::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 0; background: var(--cyan); border-radius: 0 2px 2px 0;
+      transition: height .25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .7; transition: transform .25s; }
+    .nav-item:hover { background: var(--card); color: var(--text); transform: translateX(3px); }
+    .nav-item:hover svg { transform: scale(1.1); }
+    .nav-item.active {
+      background: var(--cyan-dim); color: #93c5fd;
+      border: 1px solid rgba(59,130,246,0.25);
+      transform: translateX(4px);
+    }
+    .nav-item.active::before { height: 60%; }
+    .nav-item.active svg { opacity: 1; color: var(--cyan); }
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      font-size: .72rem; color: var(--muted);
+    }
+    .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* MAIN */
+    .main { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      height: var(--topbar-h);
+      background: rgba(7,9,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; position: sticky; top: 0; z-index: 50;
+      animation: titleFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .topbar-left h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.02em; }
+    .topbar-left p { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-api {
+      padding: 5px 10px; border-radius: 6px;
+      font-size: .7rem; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+      border: 1px solid var(--border); background: var(--card);
+    }
+    .badge-ok { border-color: rgba(16,185,129,0.3); color: var(--green); background: rgba(16,185,129,0.08); }
+    .badge-warn { border-color: rgba(245,158,11,0.3); color: var(--amber); background: rgba(245,158,11,0.08); }
+    .badge-err { border-color: rgba(239,68,68,0.3); color: var(--red); background: rgba(239,68,68,0.08); }
+    .menu-toggle {
+      display: none; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px; cursor: pointer; color: var(--text);
+    }
+
+    .content { padding: 24px 28px 40px; flex: 1; }
+    .container { max-width: 1280px; }
+
+    /* STATS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card);
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      transition: border-color .3s, transform .3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .3s;
+      position: relative; overflow: hidden;
+      animation: statPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .stat-card:nth-child(1) { animation-delay: .05s; }
+    .stat-card:nth-child(2) { animation-delay: .1s; }
+    .stat-card:nth-child(3) { animation-delay: .15s; }
+    .stat-card:nth-child(4) { animation-delay: .2s; }
+    .stat-card:nth-child(5) { animation-delay: .25s; }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--accent-line, var(--cyan));
+    }
+    .stat-card::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
+      background-size: 200% 100%;
+      opacity: 0; transition: opacity .3s;
+    }
+    .stat-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+    }
+    .stat-card:hover::after { opacity: 1; animation: shimmer 1.5s ease infinite; }
+    .stat-card h3 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 2px; transition: transform .3s; }
+    .stat-card:hover h3 { transform: scale(1.05); }
+    .stat-card p { color: var(--muted); font-size: .78rem; font-weight: 500; }
+    .stat-icon {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      opacity: .15; width: 32px; height: 32px;
+    }
+
+    .nav-tabs { display: none; }
+    .nav-btn { display: none; }
+
+    .section { display: none; }
+    .section.active { display: block; animation: pageSlideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+    .card {
+      background: rgba(17,22,32,0.85);
+      backdrop-filter: blur(8px);
+      padding: 24px 28px;
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      transition: border-color .3s, box-shadow .3s, transform .3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent);
+      animation: cardScan 4s ease-in-out infinite;
+    }
+    @keyframes cardScan {
+      0%, 100% { left: -100%; opacity: 0; }
+      10% { opacity: 1; }
+      50% { left: 150%; opacity: 1; }
+      60% { opacity: 0; }
+    }
+    .card:hover { border-color: rgba(59,130,246,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+    .card-header { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .card h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .card .sub { color: var(--muted); font-size: .82rem; }
+    .card-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+    .upload-zone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .35s cubic-bezier(0.16, 1, 0.3, 1);
+      background: rgba(255,255,255,0.02);
+      margin: 16px 0;
+      animation: borderGlow 3s ease-in-out infinite;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      background: var(--cyan-dim);
+      border-color: rgba(59,130,246,0.5);
+      transform: scale(1.01);
+      box-shadow: 0 0 40px rgba(59,130,246,0.12);
+    }
+    .upload-zone.file-ready {
+      border-style: solid;
+      border-color: rgba(16,185,129,0.4);
+      background: rgba(16,185,129,0.06);
+      animation: none;
+    }
+    .upload-zone .uz-icon {
+      width: 44px; height: 44px; margin: 0 auto 12px;
+      background: var(--elevated); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      animation: floatIcon 3s ease-in-out infinite;
+    }
+    .upload-zone:hover .uz-icon { animation-duration: 1.5s; }
+    .upload-zone h3 { font-size: .92rem; font-weight: 600; margin-bottom: 4px; }
+    .upload-zone p { color: var(--muted); font-size: .78rem; }
+
+    .input-row { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+    .input-wrap { flex: 1; min-width: 200px; }
+    .input-label { display: block; font-size: .75rem; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+    input[type=text], input[type=email], input[type=tel] {
+      width: 100%; padding: 11px 14px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .88rem;
+      font-family: inherit;
+      outline: none;
+      transition: border .2s, box-shadow .2s;
+    }
+    input[type=text]:focus, input[type=email]:focus, input[type=tel]:focus {
+      border-color: rgba(59,130,246,0.5);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .btn {
+      padding: 11px 20px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .86rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      position: relative; overflow: hidden;
+    }
+    .btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+      background-size: 200% 100%;
+      opacity: 0; transition: opacity .2s;
+    }
+    .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+    .btn:hover::after { opacity: 1; animation: shimmer 0.8s ease; }
+    .btn:active { transform: translateY(0) scale(0.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { background: var(--elevated); border: 1px solid var(--border-strong); color: var(--text); }
+    .btn-secondary:hover { background: var(--card-hover); box-shadow: none; border-color: var(--cyan); }
+    .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .btn-red:hover { box-shadow: 0 4px 14px rgba(239,68,68,0.35); }
+    .btn-sm { padding: 7px 12px; font-size: .78rem; }
+
+    .loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 28px;
+      color: var(--muted);
+      font-size: .86rem;
+      background: var(--elevated);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-top: 16px;
+    }
+    .loading.active { display: flex; animation: animIn 0.35s ease both; }
+    .spinner-ring {
+      width: 48px; height: 48px; position: relative;
+    }
+    .spinner-ring::before, .spinner-ring::after {
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid transparent;
+    }
+    .spinner-ring::before { border-top-color: var(--cyan); animation: spin .8s linear infinite; }
+    .spinner-ring::after { border-bottom-color: var(--purple); animation: spin 1.2s linear infinite reverse; inset: 6px; }
+    .spinner { width: 22px; height: 22px; border: 2px solid var(--border-strong); border-top-color: var(--cyan); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-bar {
+      width: 100%; max-width: 280px; height: 3px;
+      background: var(--bg2); border-radius: 3px; overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 40%;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      border-radius: 3px;
+      animation: progressIndeterminate 1.4s ease-in-out infinite;
+    }
+    .loading-text { animation: pulseText 1.5s ease-in-out infinite; }
+    @keyframes pulseText { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    .result-box { display: none; margin-top: 20px; }
+    .result-box.active { display: block; animation: pageSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+    .risk-bar {
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: .88rem;
+      font-weight: 600;
+      border: 1px solid;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .risk-bar::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .risk-critical { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+    .risk-critical::before { background: #ef4444; }
+    .risk-high { background: rgba(239,68,68,.06); border-color: rgba(239,68,68,.25); color: #fca5a5; }
+    .risk-high::before { background: #ef4444; }
+    .risk-medium { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.3); color: #fcd34d; }
+    .risk-medium::before { background: #f59e0b; }
+    .risk-low { background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.3); color: #6ee7b7; }
+    .risk-low::before { background: #10b981; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 5px; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .badge-critical, .badge-high { background: rgba(239,68,68,.15); color: #fca5a5; }
+    .badge-medium { background: rgba(245,158,11,.15); color: #fcd34d; }
+    .badge-low { background: rgba(16,185,129,.15); color: #6ee7b7; }
+    .badge-info { background: var(--cyan-dim); color: #93c5fd; }
+
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 12px 18px; border-radius: 8px; font-size: .84rem; font-weight: 500;
+      background: var(--elevated); border: 1px solid var(--border-strong);
+      box-shadow: var(--shadow); animation: toastIn .3s ease;
+      max-width: 360px;
+    }
+    .toast.error { border-color: rgba(239,68,68,.4); color: #fca5a5; }
+    .toast.success { border-color: rgba(16,185,129,.4); color: #6ee7b7; }
+    @keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+
+    .breach-list { margin-top: 16px; }
+    .breach-item {
+      background: var(--elevated);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--red);
+      overflow-x: auto;
+    }
+    .breach-item table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85em;
+    }
+    .breach-item th {
+      background: var(--bg2);
+      color: var(--muted);
+      padding: 8px;
+      text-align: left;
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .breach-item td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .breach-item .password { font-family: 'JetBrains Mono', monospace; color: var(--amber); font-size: .82rem; }
+    .breach-scroll {
+      max-height: 480px;
+      overflow-y: auto;
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+    .breach-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .breach-table th, .breach-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .breach-table th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: .75rem;
+      text-transform: uppercase;
+      position: sticky;
+      top: 0;
+      background: var(--elevated);
+    }
+
+    .search-summary {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--elevated);
+      padding: 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+    .search-summary .img-preview {
+      max-width: 150px;
+      max-height: 150px;
+      border-radius: 8px;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .tab-btn {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: .8rem;
+      font-family: inherit;
+      transition: all .2s;
+    }
+    .tab-btn.active {
+      background: var(--cyan-dim);
+      color: #93c5fd;
+      border-color: rgba(59,130,246,0.3);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .pages-grid, .similar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .page-card {
+      background: var(--elevated);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: transform .2s, border-color .2s;
+    }
+    .page-card { animation: animIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .page-card:hover { transform: translateY(-4px) scale(1.02); border-color: rgba(59,130,246,0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    .page-card a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .page-thumb {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-title {
+      padding: 8px;
+      font-size: 0.9em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .page-url {
+      padding: 0 8px 8px;
+      font-size: 0.75em;
+      color: var(--muted);
+    }
+    .similar-thumb {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    /* ----- METRICS (for deepfake) ----- */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .metric-item {
+      background: var(--elevated);
+      padding: 14px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .metric-value { font-size: 1.5rem; color: var(--green); font-weight: 700; }
+    .metric-label { font-size: .72rem; color: var(--muted); margin-top: 3px; text-transform: capitalize; }
+    .progress-wrap { background: var(--bg2); border-radius: 4px; height: 4px; margin: 6px 0; overflow: hidden; }
+    .progress-bar { animation: barGrow 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .progress-bar { height: 100%; border-radius: 6px; transition: width .8s ease; }
+
+    /* ----- RESULT ITEM (generic) ----- */
+    .result-item {
+      margin: 10px 0;
+      padding: 16px;
+      background: var(--elevated);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+    }
+    .result-item.danger { border-left-color: var(--red); }
+    .result-item.warn   { border-left-color: var(--amber); }
+    .result-item.ok     { border-left-color: var(--green); }
+    .rl { color: var(--text); font-weight: 600; font-size: .8rem; letter-spacing: .02em; margin-bottom: 8px; }
+
+    /* ----- PLATFORM GRID (username) ----- */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .platform-item {
+      padding: 10px 14px;
+      background: var(--elevated);
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+      font-size: .82rem;
+    }
+    .platform-item.found { border-left-color: var(--green); }
+    .platform-item.not-found { border-left-color: #334155; opacity: .6; }
+    .platform-item a { color: var(--green); font-weight: 700; font-size: .82em; }
+
+    /* ----- IMAGE PREVIEW ----- */
+    .img-preview { max-width: 100%; max-height: 280px; border-radius: 10px; margin: 12px 0; display: block; }
+
+    /* ----- TABLE (generic) ----- */
+    table { width: 100%; border-collapse: collapse; font-size: .88em; margin-top: 10px; }
+    th { background: var(--elevated); color: var(--muted); padding: 10px 12px; text-align: left; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:hover td { background: rgba(255,255,255,.03); }
+
+    /* ----- MODAL ----- */
+    #report-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0);
+      backdrop-filter: blur(0px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      transition: background .3s, backdrop-filter .3s;
+    }
+    #report-modal.open {
+      display: flex;
+      background: rgba(0,0,0,.75);
+      backdrop-filter: blur(6px);
+    }
+    #report-modal > div {
+      background: var(--card);
+      padding: 28px;
+      border-radius: var(--radius);
+      max-width: 440px;
+      width: 90%;
+      border: 1px solid var(--border-strong);
+      box-shadow: var(--shadow);
+      animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    #report-modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+
+    /* ----- API PANEL (system) ----- */
+    .api-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .api-row {
+      background: var(--elevated);
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      border: 1px solid var(--border);
+      font-size: .82rem;
+    }
+    #logs-panel {
+      max-height: 400px; overflow-y: auto;
+      background: var(--bg2); padding: 12px;
+      border-radius: 8px; margin-top: 12px;
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+    }
+
+    @media(max-width:1100px){ .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media(max-width:900px){
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .menu-toggle { display: flex; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .topbar { padding: 0 16px; }
+      .content { padding: 16px; }
+    }
+    @media(max-width:500px){
+      .stats-grid { grid-template-columns: 1fr; }
+      .search-summary { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ABOUT PAGE */
+    .about-hero {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 28px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.1));
+      border: 1px solid var(--border-strong);
+      margin-bottom: 20px;
+    }
+    .about-avatar {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      box-shadow: 0 8px 32px rgba(59,130,246,0.35);
+      flex-shrink: 0;
+    }
+    .about-hero-text h2 { font-size: 1.6rem; margin-bottom: 4px; }
+    .about-tagline {
+      color: var(--cyan);
+      font-weight: 600;
+      font-size: .95rem;
+      margin-bottom: 8px;
+    }
+    .about-bio { color: var(--muted); max-width: 640px; line-height: 1.7; }
+    .about-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .about-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .about-card h3 {
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .about-detail {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+    }
+    .about-detail:last-child { border-bottom: none; }
+    .about-detail span:first-child { color: var(--muted); }
+    .about-detail span:last-child { color: var(--text); text-align: right; font-weight: 500; }
+    .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .skill-tag {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 500;
+      background: var(--cyan-dim);
+      color: var(--cyan);
+      border: 1px solid rgba(59,130,246,0.25);
+    }
+    .about-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+    .about-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: .85rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .about-link:hover { border-color: var(--cyan); transform: translateY(-2px); color: var(--cyan); }
+    .about-quote {
+      margin-top: 20px;
+      padding: 18px 22px;
+      border-left: 3px solid var(--purple);
+      background: rgba(139,92,246,0.08);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: var(--light);
+      font-style: italic;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+<div class="bg-effects">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="scanline"></div>
+</div>
+<div id="toast-container"></div>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="brand-text">
+        <h1>OSINT Shield</h1>
+        <p>Intelligence Platform</p>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">
+        <div class="nav-group-label">Media Intelligence</div>
+        <button class="nav-item active" data-tab="deepfake" onclick="tab('deepfake',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          Deepfake Detection
+        </button>
+        <button class="nav-item" data-tab="reverse" onclick="tab('reverse',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Reverse Image
+        </button>
+        <button class="nav-item" data-tab="metadata" onclick="tab('metadata',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Metadata Analysis
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Email Intelligence</div>
+        <button class="nav-item" data-tab="leakcheck" onclick="tab('leakcheck',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+          Breach Check
+        </button>
+        <button class="nav-item" data-tab="holehe" onclick="tab('holehe',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Holehe
+        </button>
+        <button class="nav-item" data-tab="h8mail" onclick="tab('h8mail',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          H8mail
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Identity OSINT</div>
+        <button class="nav-item" data-tab="username" onclick="tab('username',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Username Search
+        </button>
+        <button class="nav-item" data-tab="sherlock" onclick="tab('sherlock',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          Sherlock
+        </button>
+        <button class="nav-item" data-tab="scylla" onclick="tab('scylla',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          Scylla
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Operations</div>
+        <button class="nav-item" data-tab="history" onclick="tab('history',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Scan History
+        </button>
+        <button class="nav-item" data-tab="system" onclick="tab('system',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          System Status
+        </button>
+        <button class="nav-item" data-tab="about" onclick="tab('about',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          About
+        </button>
+      </div>
+    </nav>
+    <div class="sidebar-footer"><span class="status-dot"></span>Platform Online</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-left">
+          <h2 id="page-title">Deepfake Detection</h2>
+          <p id="page-desc">AI-powered media authenticity analysis</p>
+        </div>
+      </div>
+      <div id="api-badges" class="topbar-right">
+        <span class="badge-api badge-warn" id="badge-leakcheck">LeakCheck</span>
+        <span class="badge-api badge-warn" id="badge-google_vision">Vision</span>
+        <span class="badge-api badge-warn" id="badge-imagga">Imagga</span>
+        <span class="badge-api badge-warn" id="badge-email">Email</span>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-card" style="--accent-line:#3b82f6"><h3 id="st-total" style="color:#3b82f6">0</h3><p>Total Scans</p></div>
+          <div class="stat-card" style="--accent-line:#ef4444"><h3 id="st-high" style="color:#ef4444">0</h3><p>High / Critical</p></div>
+          <div class="stat-card" style="--accent-line:#f59e0b"><h3 id="st-medium" style="color:#f59e0b">0</h3><p>Medium Risk</p></div>
+          <div class="stat-card" style="--accent-line:#10b981"><h3 id="st-low" style="color:#10b981">0</h3><p>Low Risk</p></div>
+          <div class="stat-card" style="--accent-line:#8b5cf6"><h3 id="st-storage" style="color:#8b5cf6">0</h3><p>MB Storage</p></div>
+        </div>
+
+  <div id="s-deepfake" class="section active">
+    <div class="card">
+      <div class="card-header">
+        <h2>Deepfake Detection</h2>
+        <p class="sub">OpenCV frame analysis, face detection, and Imagga AI ensemble scoring</p>
+      </div>
+      <div class="upload-zone" id="dz-df" onclick="pickFile('df-file')">
+        <div class="uz-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <h3>Drop image or video to analyze</h3>
+        <p>JPG, PNG, WEBP, MP4, AVI, MOV — max 32 MB</p>
+      </div>
+      <input type="file" id="df-file" accept="image/*,video/*" style="display:none" onchange="selectFile(this,'df')">
+      <button class="btn" onclick="runDeepfake()" id="btn-df">Run Analysis</button>
+      <div id="df-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Scanning for manipulation artifacts…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="df-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-reverse" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Reverse Image Search</h2>
+        <p class="sub">Locate where an image appears across the web via Google Vision</p>
+      </div>
+      <div class="upload-zone" id="dz-rev" onclick="pickFile('rev-file')">
+        <div class="uz-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <h3>Upload photo to search the internet</h3>
+        <p>Matching pages, visually similar images, and best-guess labels</p>
+      </div>
+      <input type="file" id="rev-file" accept="image/*" style="display:none" onchange="selectFile(this,'rev')">
+      <button class="btn" onclick="runReverse()" id="btn-rev">Start Search</button>
+      <div id="rev-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Searching across indexed sources…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="rev-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-leakcheck" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Data Breach Check</h2>
+        <p class="sub">Query LeakCheck and breach databases for compromised credentials</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="leakcheck-email">Email Address</label>
+          <input type="email" id="leakcheck-email" placeholder="target@example.com" onkeydown="if(event.key==='Enter')runLeakcheck()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runLeakcheck()" id="btn-leakcheck">Check Breaches</button></div>
+      </div>
+      <div id="leakcheck-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Querying breach databases…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="leakcheck-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-username" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Username OSINT</h2>
+        <p class="sub">Probe 20+ platforms for digital footprint and account presence</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="uname-input">Username</label>
+          <input type="text" id="uname-input" placeholder="johndoe" onkeydown="if(event.key==='Enter')runUsername()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runUsername()" id="btn-uname">Search Platforms</button></div>
+      </div>
+      <div id="uname-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Scanning social platforms…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="uname-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-metadata" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Metadata Extraction</h2>
+        <p class="sub">EXIF, GPS coordinates, device model, and timestamp analysis</p>
+      </div>
+      <div class="upload-zone" id="dz-meta" onclick="pickFile('meta-file')">
+        <div class="uz-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <h3>Upload image to extract metadata</h3>
+        <p>GPS location, camera model, author, and creation timestamps</p>
+      </div>
+      <input type="file" id="meta-file" accept="image/*" style="display:none" onchange="selectFile(this,'meta')">
+      <button class="btn" onclick="runMetadata()" id="btn-meta">Extract Metadata</button>
+      <div id="meta-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Parsing EXIF and embedded data…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="meta-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-holehe" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Holehe — Email Registration Discovery</h2>
+        <p class="sub">Discover which websites an email address is registered on</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="holehe-email">Email Address</label>
+          <input type="email" id="holehe-email" placeholder="target@example.com" onkeydown="if(event.key==='Enter')runHolehe()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runHolehe()" id="btn-holehe">Run Holehe</button></div>
+      </div>
+      <div id="holehe-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Checking site registrations…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="holehe-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-sherlock" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Sherlock — Username Enumeration</h2>
+        <p class="sub">Search 300+ social networks and platforms for username presence</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="sherlock-username">Username</label>
+          <input type="text" id="sherlock-username" placeholder="johndoe" onkeydown="if(event.key==='Enter')runSherlock()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runSherlock()" id="btn-sherlock">Run Sherlock</button></div>
+      </div>
+      <div id="sherlock-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Enumerating platforms…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="sherlock-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-h8mail" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>H8mail — Email Breach Search</h2>
+        <p class="sub">Cross-reference email against known breach and leak databases</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="h8mail-email">Email Address</label>
+          <input type="email" id="h8mail-email" placeholder="target@example.com" onkeydown="if(event.key==='Enter')runH8mail()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runH8mail()" id="btn-h8mail">Run H8mail</button></div>
+      </div>
+      <div id="h8mail-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Searching breach records…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="h8mail-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-scylla" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Scylla — Leak Database Search</h2>
+        <p class="sub">Query leaked credentials by email, username, or domain</p>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <label class="input-label" for="scylla-query">Search Query</label>
+          <input type="text" id="scylla-query" placeholder="email, username, or domain" onkeydown="if(event.key==='Enter')runScylla()">
+        </div>
+        <div style="align-self:flex-end"><button class="btn" onclick="runScylla()" id="btn-scylla">Query Scylla</button></div>
+      </div>
+      <div id="scylla-loading" class="loading"><div class="spinner-ring"></div><span class="loading-text">Querying leak database…</span><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>
+      <div id="scylla-result" class="result-box"></div>
+    </div>
+  </div>
+
+  <div id="s-history" class="section">
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h2>Scan History</h2>
+          <p class="sub">Complete audit trail of all previous investigations</p>
+        </div>
+        <button class="btn btn-sm btn-secondary" onclick="loadHistory()">Refresh</button>
+      </div>
+      <div id="history-result"></div>
+    </div>
+  </div>
+
+  <div id="s-system" class="section">
+    <div class="card">
+      <div class="card-header">
+        <h2>System Status</h2>
+        <p class="sub">API connection health and integration status</p>
+      </div>
+      <div id="system-panel"></div>
+    </div>
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h2>Live Logs</h2>
+          <p class="sub">Real-time platform activity and error stream</p>
+        </div>
+        <div class="card-actions" style="margin:0">
+          <button class="btn btn-sm btn-secondary" onclick="loadLogs()">Refresh</button>
+          <button class="btn btn-sm btn-secondary" onclick="startAutoLog()" id="btn-autolog">Auto-refresh</button>
+        </div>
+      </div>
+      <div id="logs-panel"></div>
+    </div>
+  </div>
+
+  <div id="s-about" class="section">
+    <div class="card">
+      <div class="about-hero">
+        <div class="about-avatar" style="position: relative; overflow: hidden;">
+          <span class="avatar-text">SK</span>
+          <img src="https://github.com/masssubash240.png" alt="Subash Kumar" onerror="this.style.display='none'; this.previousElementSibling.style.display='block';" onload="this.previousElementSibling.style.display='none';" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;">
+        </div>
+        <div class="about-hero-text">
+          <p class="about-tagline">God of Cyber · AI Security Engineer</p>
+          <h2>Subash Kumar</h2>
+          <p class="about-bio">
+            AI Automation ⚡ | Generative AI 🚀 | AI Dev 🧠 | AI Security Engineer 🛡️ |
+            Building Blue &amp; Red Team Tools 🛠️ | Aspiring Ethical Hacker 🎯 | Software Dev 💻.
+            Creator of <strong>OSINT Shield</strong> — an AI-driven platform for data breach detection,
+            identity intelligence, and digital forensics.
+          </p>
+        </div>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-card">
+          <h3>Developer Details</h3>
+          <div class="about-detail"><span>Name</span><span>Subash Kumar</span></div>
+          <div class="about-detail"><span>Alias</span><span>God of Cyber (god_of_cyber)</span></div>
+          <div class="about-detail"><span>GitHub</span><span>masssubash240</span></div>
+          <div class="about-detail"><span>Role</span><span>AI Security Engineer &amp; OSINT Developer</span></div>
+          <div class="about-detail"><span>Specialization</span><span>AI Automation · Generative AI · Red/Blue Team Tools</span></div>
+          <div class="about-detail"><span>Location</span><span>Tamil Nadu, India</span></div>
+          <div class="about-detail"><span>Repositories</span><span>17 Public Repos</span></div>
+          <div class="about-detail"><span>Project</span><span>OSINT Shield v1.0</span></div>
+          <div class="about-detail"><span>License</span><span>MIT Open Source</span></div>
+        </div>
+
+        <div class="about-card">
+          <h3>Platform Modules</h3>
+          <div class="skill-tags">
+            <span class="skill-tag">Deepfake Detection</span>
+            <span class="skill-tag">Reverse Image Search</span>
+            <span class="skill-tag">Data Breach Check</span>
+            <span class="skill-tag">Metadata Extraction</span>
+            <span class="skill-tag">Holehe</span>
+            <span class="skill-tag">H8mail</span>
+            <span class="skill-tag">Sherlock</span>
+            <span class="skill-tag">Scylla</span>
+            <span class="skill-tag">Username OSINT</span>
+            <span class="skill-tag">PDF Reports</span>
+          </div>
+        </div>
+
+        <div class="about-card">
+          <h3>Tech Stack</h3>
+          <div class="skill-tags">
+            <span class="skill-tag">Python 3.11+</span>
+            <span class="skill-tag">Flask</span>
+            <span class="skill-tag">OpenCV</span>
+            <span class="skill-tag">Google Gemini AI</span>
+            <span class="skill-tag">LeakCheck API</span>
+            <span class="skill-tag">Imagga AI</span>
+            <span class="skill-tag">Supabase</span>
+            <span class="skill-tag">ReportLab</span>
+          </div>
+        </div>
+
+        <div class="about-card">
+          <h3>Connect</h3>
+          <div class="about-links">
+            <a class="about-link" href="https://github.com/masssubash240" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub Profile
+            </a>
+            <a class="about-link" href="https://github.com/masssubash240/OSINT-AI-driven-Data-Breach-Detection" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              OSINT Shield Repo
+            </a>
+            <a class="about-link" href="https://www.linkedin.com/in/subash-kumar-8a07ab344" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              LinkedIn
+            </a>
+            <a class="about-link" href="https://www.instagram.com/god_of_cyber_/" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+              Instagram
+            </a>
+            <a class="about-link" href="https://www.youtube.com/@hackerror07" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              YouTube
+            </a>
+          </div>
+          <div class="about-quote">
+            "Developed by Subash Kumar (masssubash240) — God of Cyber. Building AI-driven security tools and protecting digital identities through open-source intelligence."
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+      </div><!-- /container -->
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+  <div id="report-modal">
+    <div>
+      <h3>Export Investigation Report</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px">Scan ID: <strong id="modal-scan-id" style="color:var(--text)"></strong></p>
+      <label class="input-label" for="modal-email">Recipient Email</label>
+      <input type="email" id="modal-email" placeholder="analyst@company.com" style="width:100%;margin-bottom:16px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="submitReport()">Send Report</button>
+        <button class="btn btn-secondary" onclick="downloadReport()">Download PDF</button>
+        <button class="btn btn-red" onclick="closeModal()">Cancel</button>
+      </div>
+      <div id="modal-msg" style="margin-top:12px;font-size:.82rem;"></div>
+    </div>
+  </div>
+
+<script>
+  // ------------------------------------------------------------
+  // GLOBAL STATE
+  // ------------------------------------------------------------
+  const files = {};
+  let activeScanId = null;
+  let autoLogTimer = null;
+
+  const PAGE_META = {
+    deepfake:  { title: 'Deepfake Detection',      desc: 'AI-powered media authenticity analysis' },
+    reverse:   { title: 'Reverse Image Search',    desc: 'Locate image appearances across the web' },
+    leakcheck: { title: 'Data Breach Check',       desc: 'Query compromised credential databases' },
+    username:  { title: 'Username OSINT',          desc: 'Digital footprint across social platforms' },
+    metadata:  { title: 'Metadata Extraction',     desc: 'EXIF, GPS, and embedded file intelligence' },
+    holehe:    { title: 'Holehe',                  desc: 'Email registration discovery' },
+    sherlock:  { title: 'Sherlock',                desc: 'Username enumeration across 300+ sites' },
+    h8mail:    { title: 'H8mail',                  desc: 'Email breach and leak correlation' },
+    scylla:    { title: 'Scylla',                  desc: 'Leaked credentials database search' },
+    history:   { title: 'Scan History',            desc: 'Complete investigation audit trail' },
+    system:    { title: 'System Status',           desc: 'API health, integrations, and live logs' },
+    about:     { title: 'About',                   desc: 'Developer profile — masssubash240 · Subash Kumar' }
+  };
+
+  function tab(id, btn) {
+    const current = document.querySelector('.section.active');
+    const next = document.getElementById('s-' + id);
+    const finish = () => {
+      document.querySelectorAll('.section').forEach(el => {
+        el.classList.remove('active');
+        el.style.opacity = '';
+        el.style.transform = '';
+        el.style.transition = '';
+        el.style.animation = '';
+      });
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      next.classList.add('active');
+      if (btn) btn.classList.add('active');
+      const meta = PAGE_META[id] || {};
+      const title = document.getElementById('page-title');
+      const desc = document.getElementById('page-desc');
+      title.style.animation = 'none';
+      desc.style.animation = 'none';
+      void title.offsetWidth;
+      title.textContent = meta.title || id;
+      desc.textContent = meta.desc || '';
+      title.style.animation = 'titleFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) both';
+      desc.style.animation = 'titleFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both';
+      document.getElementById('sidebar').classList.remove('open');
+      if (id === 'history') loadHistory();
+      if (id === 'system') { loadSystemStatus(); loadLogs(); }
+    };
+    if (current && current !== next) {
+      current.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+      current.style.opacity = '0';
+      current.style.transform = 'translateY(-12px)';
+      setTimeout(finish, 200);
+    } else finish();
+  }
+
+  function toast(msg, type = 'error') {
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all .3s'; setTimeout(() => el.remove(), 300); }, 3500);
+  }
+
+  function animateCounter(el, target, duration = 900) {
+    if (!el) return;
+    const end = parseFloat(target) || 0;
+    const isFloat = String(target).includes('.');
+    const start = parseFloat(el.dataset.val || el.textContent) || 0;
+    const t0 = performance.now();
+    function step(now) {
+      const p = Math.min((now - t0) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 4);
+      const val = start + (end - start) * eased;
+      el.textContent = isFloat ? val.toFixed(1) : Math.round(val);
+      if (p < 1) requestAnimationFrame(step);
+      else { el.textContent = target; el.dataset.val = target; }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function animateResults(box) {
+    if (!box) return;
+    const items = box.querySelectorAll('.result-item, .risk-bar, .metric-item, .platform-item, .breach-item, .page-card, tr');
+    items.forEach((el, i) => {
+      el.style.animationDelay = (i * 0.05) + 's';
+      el.classList.add('anim-in');
+    });
+  }
+
+  function fileSelectedHtml(name, mb, type) {
+    return `<div class="uz-icon" style="animation:none;background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><h3>${name}</h3><p>${mb} MB · ${type || 'ready'}</p>`;
+  }
+
+  // ------------------------------------------------------------
+  // FILE UPLOAD HELPERS
+  // ------------------------------------------------------------
+  function pickFile(id) { document.getElementById(id).click(); }
+
+  function selectFile(input, prefix) {
+    if (!input.files || !input.files[0]) return;
+    files[prefix] = input.files[0];
+    const f = input.files[0];
+    const mb = (f.size / 1024 / 1024).toFixed(2);
+    const zone = document.getElementById('dz-' + prefix);
+    zone.classList.add('file-ready');
+    zone.innerHTML = fileSelectedHtml(f.name, mb, f.type);
+    zone.style.animation = 'animIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both';
+  }
+
+  function setupDrop(prefix) {
+    const zone = document.getElementById('dz-' + prefix);
+    if (!zone) return;
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        files[prefix] = e.dataTransfer.files[0];
+        const f = e.dataTransfer.files[0];
+        zone.classList.add('file-ready');
+        zone.innerHTML = fileSelectedHtml(f.name, (f.size / 1024 / 1024).toFixed(2), f.type);
+        zone.style.animation = 'animIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both';
+      }
+    });
+  }
+  ['df', 'rev', 'meta'].forEach(setupDrop);
+
+  // ------------------------------------------------------------
+  // STATS & API BADGES
+  // ------------------------------------------------------------
+  async function loadStats() {
+    try {
+      const d = await apiFetch('/api/system/stats');
+      animateCounter(document.getElementById('st-total'), d.scans.total);
+      animateCounter(document.getElementById('st-high'), d.scans.high);
+      animateCounter(document.getElementById('st-medium'), d.scans.medium);
+      animateCounter(document.getElementById('st-low'), d.scans.low);
+      animateCounter(document.getElementById('st-storage'), d.storage_mb);
+
+      const aps = d.api_status || {};
+      setBadge('badge-leakcheck', aps.leakcheck, 'LeakCheck');
+      setBadge('badge-google_vision', aps.google_vision, 'Google Vision');
+      setBadge('badge-imagga', aps.imagga, 'Imagga');
+      setBadge('badge-email', aps.email, 'Email');
+    } catch (e) { console.error('Stats error:', e); }
+  }
+
+  function setBadge(id, status, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ok = status === 'connected';
+    const warn = status && status.startsWith('not_configured');
+    el.className = 'badge-api ' + (ok ? 'badge-ok' : warn ? 'badge-warn' : 'badge-err');
+    const dot = ok ? '●' : warn ? '◐' : '○';
+    el.textContent = dot + ' ' + label;
+  }
+
+  // ------------------------------------------------------------
+  // API HELPER
+  // ------------------------------------------------------------
+  async function apiFetch(url, opts = {}) {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+      throw new Error(e.error || `HTTP ${r.status}`);
+    }
+    return r.json();
+  }
+
+  function setLoading(id, active) {
+    const loadEl = document.getElementById(id + '-loading');
+    if (loadEl) loadEl.classList.toggle('active', active);
+    // Support both btn-{id} and btn-{id} patterns
+    const btn = document.getElementById('btn-' + id);
+    if (btn) btn.disabled = active;
+  }
+
+  // ------------------------------------------------------------
+  // RISK HELPERS
+  // ------------------------------------------------------------
+  function riskClass(r) { return 'risk-' + (r || '').toLowerCase(); }
+  function riskBadge(r) {
+    const cls = {CRITICAL:'badge-critical',HIGH:'badge-high',MEDIUM:'badge-medium',LOW:'badge-low'}[r]||'badge-info';
+    return `<span class="badge ${cls}">${r||'?'}</span>`;
+  }
+  function progressColor(v) {
+    if (v > 80) return '#ef4444'; if (v > 60) return '#f59e0b'; if (v > 40) return '#00d4ff'; return '#22c55e';
+  }
+
+  // ------------------------------------------------------------
+  // REPORT MODAL
+  // ------------------------------------------------------------
+  function openModal(scanId) {
+    activeScanId = scanId;
+    document.getElementById('modal-scan-id').textContent = scanId;
+    document.getElementById('modal-email').value = '';
+    document.getElementById('modal-msg').textContent = '';
+    document.getElementById('report-modal').classList.add('open');
+  }
+  function closeModal() { document.getElementById('report-modal').classList.remove('open'); }
+
+  async function submitReport() {
+    const email = document.getElementById('modal-email').value.trim();
+    const msg = document.getElementById('modal-msg');
+    msg.textContent = 'Sending…';
+    try {
+      const d = await apiFetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scan_id: activeScanId, email })
+      });
+      msg.style.color = d.email_sent ? 'var(--green)' : 'var(--amber)';
+      msg.textContent = d.email_sent ? '✅ Email sent!' : '⚠️ Report created but email not sent (check ALERT_EMAIL)';
+    } catch (e) { msg.style.color = 'var(--red)'; msg.textContent = '❌ ' + e.message; }
+  }
+
+  function downloadReport() {
+    if (!activeScanId) return;
+    window.open('/api/report/download/' + activeScanId, '_blank');
+  }
+
+  // ------------------------------------------------------------
+  // DEEPFAKE
+  // ------------------------------------------------------------
+  async function runDeepfake() {
+    if (!files.df) { toast('Please select a file first'); return; }
+    setLoading('df', true);
+    document.getElementById('df-result').classList.remove('active');
+    try {
+      const fd = new FormData(); fd.append('file', files.df);
+      const d = await apiFetch('/api/deepfake', { method: 'POST', body: fd });
+      renderDeepfake(d);
+    } catch (e) { toast(e.message); } finally { setLoading('df', false); loadStats(); }
+  }
+
+  function renderDeepfake(d) {
+    const box = document.getElementById('df-result');
+    box.classList.add('active');
+    let h = `<div class="risk-bar ${riskClass(d.risk_level)}">${d.verdict} — Score: ${d.deepfake_score}%</div>`;
+    if (d.image_b64) h += `<img class="img-preview" src="data:image/jpeg;base64,${d.image_b64}">`;
+    h += `<div class="metric-grid">`;
+    for (const [k,v] of Object.entries(d.metrics||{})) {
+      h += `<div class="metric-item"><div class="metric-value" style="color:${progressColor(v)}">${v}%</div><div class="metric-label">${k.replace(/_/g,' ')}</div><div class="progress-wrap"><div class="progress-bar" style="width:${v}%;background:${progressColor(v)}"></div></div></div>`;
+    }
+    h += `</div>`;
+    h += `<div class="result-item ${d.deepfake_score>55?'danger':'ok'}"><div class="rl">Face Detection</div><p>Faces: ${d.face_count||0} | Type: ${d.type}</p></div>`;
+    // Gemini AI Analysis
+    if (d.ai_analysis) {
+      const a = d.ai_analysis;
+      h += `<div class="result-item ${d.deepfake_score > 55 ? 'danger' : 'ok'}">
+        <div class="rl">🤖 Gemini AI Analysis <span style="font-size:.75em;color:var(--muted)">(${d.confidence || ''} confidence)</span></div>`;
+      if (d.indicators && d.indicators.length) {
+        h += `<p style="margin:8px 0;color:var(--amber)"><strong>⚠️ Indicators:</strong></p><ul style="margin-left:16px">`;
+        d.indicators.forEach(i => h += `<li style="color:var(--text);margin:3px 0">${i}</li>`);
+        h += `</ul>`;
+      }
+      h += `<table style="margin-top:10px">`;
+      const labels = {
+        face_manipulation: '👤 Face Manipulation',
+        lighting_consistency: '💡 Lighting',
+        background_artifacts: '🖼️ Background',
+        skin_texture: '🎭 Skin/Texture',
+        edge_blending: '✂️ Edge Blending',
+        overall_assessment: '📋 Overall'
+      };
+      for (const [k, label] of Object.entries(labels)) {
+        if (a[k]) h += `<tr><td style="color:var(--cyan);width:160px">${label}</td><td>${a[k]}</td></tr>`;
+      }
+      h += `</table></div>`;
+    }
+
+    // Imagga Tags
+    if (d.imagga) {
+      const im = d.imagga;
+      if (im.api_status === 'connected' && im.tags && im.tags.length > 0) {
+        h += `<div class="result-item"><div class="rl">🏷️ AI Tags (Imagga)</div>`;
+        im.tags.forEach(t => h += `<span style="display:inline-block;margin:3px;padding:4px 10px;background:#1e293b;border-radius:20px;font-size:.82em;color:var(--cyan)">${t.tag} <strong>${t.confidence}%</strong></span>`);
+        if (im.face_count !== undefined) h += `<p style="margin-top:8px;color:var(--muted)">Faces detected: ${im.face_count}</p>`;
+        h += `</div>`;
+      } else if (im.api_status === 'not_configured') {
+        h += `<div class="result-item warn"><div class="rl">⚠️ Imagga</div><p>Set IMAGGA_API_KEY and IMAGGA_SECRET in .env for AI tag analysis</p></div>`;
+      } else if (im.api_status === 'error') {
+        h += `<div class="result-item warn"><div class="rl">⚠️ Imagga Error</div><p>${im.error}</p></div>`;
+      }
+    }
+    h += reportBtn(d.scan_id);
+    box.innerHTML = h;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // REVERSE IMAGE
+  // ------------------------------------------------------------
+  async function runReverse() {
+    if (!files.rev) { toast('Please select an image'); return; }
+    setLoading('rev', true);
+    document.getElementById('rev-result').classList.remove('active');
+    try {
+      const fd = new FormData(); fd.append('file', files.rev);
+      const d = await apiFetch('/api/reverse-image', { method: 'POST', body: fd });
+      renderReverse(d);
+    } catch (e) { toast(e.message); } finally { setLoading('rev', false); loadStats(); }
+  }
+
+  function renderReverse(d) {
+    const box = document.getElementById('rev-result');
+    box.classList.add('active');
+    let html = `<div class="search-summary">`;
+    if (d.image_b64) html += `<img src="data:image/jpeg;base64,${d.image_b64}" class="img-preview">`;
+    html += `<div><p><strong>Best guess:</strong> ${d.best_guess_labels.join(', ') || 'N/A'}</p>`;
+    html += `<p><strong>Total matches:</strong> ${d.total_results}</p></div></div>`;
+
+    html += `<div class="tabs">`;
+    html += `<button class="tab-btn active" onclick="showTab('pages')">Pages (${d.pages_with_matching.length})</button>`;
+    html += `<button class="tab-btn" onclick="showTab('similar')">Similar (${d.visually_similar_images.length})</button>`;
+    if (d.full_matching_images?.length) html += `<button class="tab-btn" onclick="showTab('full')">Full (${d.full_matching_images.length})</button>`;
+    html += `</div>`;
+
+    html += `<div id="pages-tab" class="tab-content active"><div class="pages-grid">`;
+    d.pages_with_matching.slice(0,30).forEach(p => {
+      let host = 'unknown';
+      try { host = new URL(p.url).hostname; } catch (e) {}
+      html += `<div class="page-card"><a href="${p.url}" target="_blank"><img src="${p.thumbnail || 'https://via.placeholder.com/180x120?text=No+Image'}" class="page-thumb" onerror="this.src='https://via.placeholder.com/180x120?text=Error'"><div class="page-title">${p.title.substring(0,60)}</div><div class="page-url">${host}</div></a></div>`;
+    });
+    html += `</div></div>`;
+
+    html += `<div id="similar-tab" class="tab-content"><div class="similar-grid">`;
+    d.visually_similar_images.slice(0,30).forEach(img => {
+      html += `<img src="${img.url}" class="similar-thumb" onerror="this.style.display='none'">`;
+    });
+    html += `</div></div>`;
+
+    if (d.full_matching_images?.length) {
+      html += `<div id="full-tab" class="tab-content"><div class="similar-grid">`;
+      d.full_matching_images.slice(0,30).forEach(img => {
+        html += `<img src="${img.url}" class="similar-thumb" onerror="this.style.display='none'">`;
+      });
+      html += `</div></div>`;
+    }
+
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  window.showTab = function(tabName) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabName + '-tab').classList.add('active');
+    event.target.classList.add('active');
+  };
+
+  // ------------------------------------------------------------
+  // LEAKCHECK
+  // ------------------------------------------------------------
+  async function runLeakcheck() {
+    const email = document.getElementById('leakcheck-email').value.trim();
+    if (!email) { toast('Enter an email address'); return; }
+    setLoading('leakcheck', true);
+    document.getElementById('leakcheck-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/leakcheck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      renderLeakcheck(d);
+    } catch (e) { toast(e.message); } finally { setLoading('leakcheck', false); loadStats(); }
+  }
+
+  function renderLeakcheck(d) {
+    const box = document.getElementById('leakcheck-result');
+    box.classList.add('active');
+    const sourceLabel = d.api_source || 'LeakCheck.io';
+    const count = Number(d.found) || 0;
+    const results = Array.isArray(d.results) ? d.results : [];
+    let html = `<div class="risk-bar ${riskClass(d.risk_level)}">${
+      count > 0 ? `Found ${count} breach record(s)` : 'No breaches found'
+    } via ${sourceLabel}</div>`;
+
+    if (d.api_note) {
+      html += `<div class="result-item warn"><div class="rl">⚠️ ${d.api_note}</div></div>`;
+    }
+    if (d.quota_remaining != null) {
+      html += `<div class="result-item"><div class="rl">Quota remaining</div><div class="rv">${d.quota_remaining}</div></div>`;
+    }
+
+    if (count > 0 && results.length > 0) {
+      html += '<div class="breach-list breach-scroll"><table class="breach-table"><thead><tr><th>#</th><th>Source</th><th>Date</th><th>Details</th></tr></thead><tbody>';
+      results.forEach((entry, i) => {
+        const details = [];
+        if (entry.username) details.push(`user: ${entry.username}`);
+        if (entry.password) details.push(`pass: <span class="password">${entry.password}</span>`);
+        if (entry.exposed_fields) details.push(entry.exposed_fields);
+        Object.entries(entry).forEach(([key, value]) => {
+          if (['email', 'source', 'breach_date', 'date', 'exposed_fields', 'username', 'password'].includes(key)) return;
+          if (value) details.push(`${key}: ${value}`);
+        });
+        html += `<tr><td>${i + 1}</td><td>${entry.source || 'Unknown'}</td><td>${entry.breach_date || entry.date || '—'}</td><td>${details.join('<br>') || '—'}</td></tr>`;
+      });
+      html += '</tbody></table></div>';
+      if (d.truncated) {
+        html += `<div class="result-item warn"><div class="rl">Showing ${d.showing || results.length} of ${count} results (limited for performance)</div></div>`;
+      }
+    } else if (count === 0) {
+      html += '<div class="result-item ok"><div class="rl">✅ No breaches found for this email</div></div>';
+    } else {
+      html += '<div class="result-item warn"><div class="rl">Breach records exist but details are unavailable — activate LeakCheck Pro for full data</div></div>';
+    }
+
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // USERNAME OSINT
+  // ------------------------------------------------------------
+  async function runUsername() {
+    const u = document.getElementById('uname-input').value.trim();
+    if (!u) { toast('Enter a username'); return; }
+    setLoading('uname', true);
+    document.getElementById('uname-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u })
+      });
+      renderUsername(d);
+    } catch (e) { toast(e.message); } finally { setLoading('uname', false); loadStats(); }
+  }
+
+  function renderUsername(d) {
+    const box = document.getElementById('uname-result');
+    box.classList.add('active');
+    let h = `<div class="risk-bar ${riskClass(d.risk_level)}">Footprint: ${d.digital_footprint}</div>`;
+    h += `<div class="result-item ok"><div class="rl">✅ Found (${d.found.length})</div><div class="platform-grid">`;
+    d.found.forEach(p => h += `<div class="platform-item found"><span>${p.icon} ${p.platform}</span><a href="${p.url}" target="_blank">Open</a></div>`);
+    h += `</div></div><div class="result-item"><div class="rl">❌ Not Found (${d.not_found.length})</div><div class="platform-grid">`;
+    d.not_found.forEach(p => h += `<div class="platform-item not-found"><span>${p.icon} ${p.platform}</span><span style="color:var(--muted)">${p.status}</span></div>`);
+    h += `</div></div>`;
+    h += reportBtn(d.scan_id);
+    box.innerHTML = h;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // METADATA
+  // ------------------------------------------------------------
+  async function runMetadata() {
+    if (!files.meta) { toast('Select an image'); return; }
+    setLoading('meta', true);
+    document.getElementById('meta-result').classList.remove('active');
+    try {
+      const fd = new FormData(); fd.append('file', files.meta);
+      const d = await apiFetch('/api/metadata', { method: 'POST', body: fd });
+      renderMetadata(d);
+    } catch (e) { toast(e.message); } finally { setLoading('meta', false); loadStats(); }
+  }
+
+  function renderMetadata(d) {
+    const box = document.getElementById('meta-result');
+    box.classList.add('active');
+    let h = `<div class="risk-bar ${riskClass(d.risk_level)}">Risk: ${d.risk_level}</div>`;
+    if (d.image_b64) h += `<img class="img-preview" src="data:image/jpeg;base64,${d.image_b64}">`;
+    if (d.risk_flags.length) {
+      h += `<div class="result-item danger"><div class="rl">🚩 Risk Flags</div><ul>${d.risk_flags.map(f=>`<li>${f}</li>`).join('')}</ul></div>`;
+    }
+    if (d.gps) {
+      h += `<div class="result-item danger"><div class="rl">📍 GPS</div><p>Lat: ${d.gps.latitude}, Lon: ${d.gps.longitude}</p><a href="${d.gps.maps_url}" target="_blank" class="btn btn-sm">🗺️ Map</a></div>`;
+    }
+    h += `<div class="result-item"><div class="rl">📊 EXIF</div><table>`;
+    for (const [k,v] of Object.entries(d.exif)) {
+      h += `<tr><td style="color:var(--cyan)">${k}</td><td>${v}</td></tr>`;
+    }
+    h += `</table></div>`;
+    h += reportBtn(d.scan_id);
+    box.innerHTML = h;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // HOLEHE
+  // ------------------------------------------------------------
+  async function runHolehe() {
+    const email = document.getElementById('holehe-email').value.trim();
+    if (!email) { toast('Enter an email address'); return; }
+    setLoading('holehe', true);
+    document.getElementById('holehe-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/holehe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      renderHolehe(d);
+    } catch (e) { toast(e.message); } finally { setLoading('holehe', false); loadStats(); }
+  }
+
+  function renderHolehe(d) {
+    const box = document.getElementById('holehe-result');
+    box.classList.add('active');
+    let html = `<div class="risk-bar ${riskClass(d.risk_level)}">Found on ${d.count} sites</div>`;
+    if (d.count > 0) {
+      html += '<div class="result-item"><div class="rl">📌 Registered Websites</div><table><tr><th>Site</th><th>Method</th><th>Note</th></tr>';
+      d.found.forEach(site => {
+        html += `<tr><td><a href="${site.website}" target="_blank">${site.name}</a></td><td>${site.method}</td><td>${site.note || ''}</td></tr>`;
+      });
+      html += '</table></div>';
+    } else {
+      html += '<div class="result-item ok"><div class="rl">✅ No accounts found</div></div>';
+    }
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // SHERLOCK
+  // ------------------------------------------------------------
+  async function runSherlock() {
+    const username = document.getElementById('sherlock-username').value.trim();
+    if (!username) { toast('Enter a username'); return; }
+    setLoading('sherlock', true);
+    document.getElementById('sherlock-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/sherlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      renderSherlock(d);
+    } catch (e) { toast(e.message); } finally { setLoading('sherlock', false); loadStats(); }
+  }
+
+  function renderSherlock(d) {
+    const box = document.getElementById('sherlock-result');
+    box.classList.add('active');
+    let html = `<div class="risk-bar ${riskClass(d.risk_level)}">Found on ${d.count} platforms</div>`;
+    if (d.count > 0) {
+      html += '<div class="platform-grid">';
+      d.found.forEach(site => {
+        html += `<div class="platform-item found"><span>${site.site}</span><a href="${site.url}" target="_blank">Open</a></div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="result-item ok"><div class="rl">✅ No profiles found</div></div>';
+    }
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // H8MAIL
+  // ------------------------------------------------------------
+  async function runH8mail() {
+    const email = document.getElementById('h8mail-email').value.trim();
+    if (!email) { toast('Enter an email address'); return; }
+    setLoading('h8mail', true);
+    document.getElementById('h8mail-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/h8mail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      renderH8mail(d);
+    } catch (e) { toast(e.message); } finally { setLoading('h8mail', false); loadStats(); }
+  }
+
+  function renderH8mail(d) {
+    const box = document.getElementById('h8mail-result');
+    box.classList.add('active');
+    let html = `<div class="risk-bar ${riskClass(d.risk_level)}">${d.count} breach(es) found</div>`;
+    if (d.count > 0) {
+      html += '<div class="result-item danger"><div class="rl">💀 Breaches</div><table><tr><th>Source</th><th>Date</th><th>Password (truncated)</th></tr>';
+      d.breaches.forEach(b => {
+        html += `<tr><td>${b.source}</td><td>${b.date}</td><td>${b.password}</td></tr>`;
+      });
+      html += '</table></div>';
+    } else {
+      html += '<div class="result-item ok"><div class="rl">🟢 No breaches found</div></div>';
+    }
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // SCYLLA
+  // ------------------------------------------------------------
+  async function runScylla() {
+    const query = document.getElementById('scylla-query').value.trim();
+    if (!query) { toast('Enter a search query'); return; }
+    setLoading('scylla', true);
+    document.getElementById('scylla-result').classList.remove('active');
+    try {
+      const d = await apiFetch('/api/scylla', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      renderScylla(d);
+    } catch (e) { toast(e.message); } finally { setLoading('scylla', false); loadStats(); }
+  }
+
+  function renderScylla(d) {
+    const box = document.getElementById('scylla-result');
+    box.classList.add('active');
+    let html = `<div class="risk-bar">Scylla Results</div>`;
+    if (d.results && !d.results.error) {
+      html += '<pre>' + JSON.stringify(d.results, null, 2) + '</pre>';
+    } else {
+      html += `<div class="result-item warn"><div class="rl">⚠️ Error</div><p>${d.results?.error || 'Unknown error'}</p></div>`;
+    }
+    html += reportBtn(d.scan_id);
+    box.innerHTML = html;
+    animateResults(box);
+  }
+
+  // ------------------------------------------------------------
+  // HISTORY
+  // ------------------------------------------------------------
+  async function loadHistory() {
+    const box = document.getElementById('history-result');
+    box.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const data = await apiFetch('/api/history?limit=50');
+      if (!data.length) { box.innerHTML = '<p style="color:var(--muted)">No scans yet.</p>'; return; }
+      let h = '<table><tr><th>ID</th><th>Type</th><th>Input</th><th>Score</th><th>Risk</th><th>Time</th><th>Report</th></tr>';
+      data.forEach(s => {
+        h += `<tr><td>#${s.id}</td><td>${s.type}</td><td>${s.input}</td><td>${s.score}</td><td>${riskBadge(s.risk)}</td><td>${s.time}</td><td style="white-space:nowrap"><button class="btn btn-sm btn-secondary" onclick="openModal(${s.id})">Email</button> <a href="/api/report/download/${s.id}" target="_blank"><button class="btn btn-sm">PDF</button></a></td></tr>`;
+      });
+      h += '</table>';
+      box.innerHTML = h;
+      animateResults(box);
+    } catch (e) { box.innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`; }
+  }
+
+  // ------------------------------------------------------------
+  // SYSTEM
+  // ------------------------------------------------------------
+  async function loadSystemStatus() {
+    const panel = document.getElementById('system-panel');
+    try {
+      const d = await apiFetch('/api/system/stats');
+      const aps = d.api_status || {};
+      let h = '<div class="api-panel">';
+      for (const [name, status] of Object.entries(aps)) {
+        const ok = status === 'connected';
+        const warn = status && status.startsWith('not_configured');
+        const icon = ok ? '✅' : warn ? '⚠️' : '❌';
+        h += `<div class="api-row"><span>${name}</span><span>${icon} ${status}</span></div>`;
+      }
+      h += '</div>';
+      panel.innerHTML = h;
+    } catch (e) { panel.innerHTML = `<p style="color:var(--red)">${e.message}</p>`; }
+  }
+
+  async function loadLogs() {
+    const panel = document.getElementById('logs-panel');
+    try {
+      const d = await apiFetch('/api/system/logs?limit=80');
+      const colMap = {INFO:'var(--cyan)',WARN:'var(--amber)',ERROR:'var(--red)',DEBUG:'var(--muted)'};
+      let h = '';
+      d.logs.forEach(l => {
+        const col = colMap[l.level] || 'var(--text)';
+        h += `<div style="padding:2px 0;border-bottom:1px solid var(--border);font-family:monospace;"><span style="color:var(--muted)">${l.time}</span> <span style="color:${col}">[${l.level}]</span> ${l.msg}</div>`;
+      });
+      panel.innerHTML = h;
+    } catch (e) { panel.innerHTML = `<p style="color:var(--red)">Error loading logs</p>`; }
+  }
+
+  function startAutoLog() {
+    const btn = document.getElementById('btn-autolog');
+    if (autoLogTimer) {
+      clearInterval(autoLogTimer); autoLogTimer = null;
+      if (btn) btn.textContent = 'Auto-refresh';
+      return;
+    }
+    autoLogTimer = setInterval(loadLogs, 3000);
+    if (btn) btn.textContent = 'Stop';
+    loadLogs();
+  }
+
+  // ------------------------------------------------------------
+  // REPORT BUTTON HELPER
+  // ------------------------------------------------------------
+  function reportBtn(scanId) {
+    if (!scanId) return '';
+    return `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-secondary" onclick="openModal(${scanId})">Email Report</button><a href="/api/report/download/${scanId}" target="_blank"><button class="btn btn-sm">Download PDF</button></a></div>`;
+  }
+
+  // ------------------------------------------------------------
+  // INIT
+  // ------------------------------------------------------------
+  document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    setInterval(loadStats, 30000);
+    document.getElementById('report-modal').addEventListener('click', e => {
+      if (e.target.id === 'report-modal') closeModal();
+    });
+  });
+</script>
+</body>
+</html>
